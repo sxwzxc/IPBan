@@ -129,7 +129,7 @@ namespace DigitalRuby.IPBanCore
                             if (existingScanner.PathAndMask == options.PathAndMask)
                             {
                                 // the existing scanner will get replaced, but we notify the user so they can fix the issue
-                                Logger.Error("Multiple log file scanners detected with identical path and mask {0}. Use junctions if you need multiple log file scanners on the same directory.", existingScanner.PathAndMask);
+                                Logger.Info("Multiple log file scanners detected with identical path and mask {0}. Use junctions if you need multiple log file scanners on the same directory.", existingScanner.PathAndMask);
                             }
 
                             // TODO: Add unit/integration test for this case
