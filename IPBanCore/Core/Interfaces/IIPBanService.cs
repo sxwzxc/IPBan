@@ -308,6 +308,6 @@ namespace DigitalRuby.IPBanCore
         /// <param name="state">State</param>
         /// <param name="name">Task name</param>
         /// <returns>Task</returns>
-        public Task RunFirewallTask<T>(Func<T, CancellationToken, Task> action, T state, string name);
+        public Task RunFirewallTask<T>(Func<T, IIPBanFirewall, CancellationToken, Task> action, T state, string name);
     }
 }

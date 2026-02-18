@@ -959,7 +959,19 @@ namespace DigitalRuby.IPBanCore
                 try
                 {
                     Logger.Debug("Running firewall task {0}", firewallTask.Name);
-                    var result = firewallTask.TaskToRun.DynamicInvoke(firewallTask.State, firewallTask.CancelToken);
+                    var state = firewallTask.State;
+                    if (state is TempFile tempFile)
+                    {
+                        try
+                        {
+                            state = JsonSerializationHelper.DeserializeFromFile(tempFile.FullName, firewallTask.StateType);
+                        }
+                        finally
+                        {
+                            tempFile.Dispose();
+                        }
+                    }
+                    var result = firewallTask.TaskToRun.DynamicInvoke(state, firewallTask.CancelToken);
                     if (result is Task task)
                     {
                         await task;

@@ -50,6 +50,19 @@ public static class JsonSerializationHelper
     }
 
     /// <summary>
+    /// Deserialize from stream
+    /// </summary>
+    /// <param name="stream">Stream</param>
+    /// <param name="type">Type</param>
+    /// <returns>Object</returns>
+    /// <exception cref="ArgumentNullException">Stream is null</exception>
+    public static object Deserialize(Stream stream, Type type)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        return JsonSerializer.Deserialize(stream, type, Options)!;
+    }
+
+    /// <summary>
     /// Serialize
     /// </summary>
     /// <typeparam name="T">Type</typeparam>
@@ -102,6 +115,18 @@ public static class JsonSerializationHelper
     {
         using var fs = File.OpenRead(path);
         return Deserialize<T>(fs);
+    }
+
+    /// <summary>
+    /// Deserialize from file
+    /// </summary>
+    /// <param name="path">File path</param>
+    /// <param name="type">Type</param>
+    /// <returns>Object</returns>
+    public static object DeserializeFromFile(string path, Type type)
+    {
+        using var fs = File.OpenRead(path);
+        return Deserialize(fs, type);
     }
 
     /// <summary>

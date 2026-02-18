@@ -22,6 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#define USE_TEMP_FILE_FOR_FIREWALL_TASKS
+
 #region Imports
 
 using System;
@@ -384,7 +386,7 @@ namespace DigitalRuby.IPBanCore
         }
 
         /// <inheritdoc />
-        public Task RunFirewallTask<T>(Func<T, CancellationToken, Task> action, T state, string name)
+        public Task RunFirewallTask<T>(Func<T, IIPBanFirewall, CancellationToken, Task> action, T state, string name)
         {
             if (!IsRunning || CancelToken.IsCancellationRequested)
             {
@@ -392,14 +394,23 @@ namespace DigitalRuby.IPBanCore
             }
             else if (MultiThreaded)
             {
-                var task = new FirewallTask(action, state, typeof(T), name, CancelToken);
+
+#if USE_TEMP_FILE_FOR_FIREWALL_TASKS
+
+                var tempFile = new TempFile();
+                JsonSerializationHelper.SerializeToFile(state, tempFile);
+                state = tempFile;
+
+#endif
+
+                var task = new FirewallTask(action, Firewall, state, typeof(T), name, CancelToken);
                 Logger.Debug("Queued firewall task {0}", name);
                 firewallTasks.Enqueue(task);
                 return Task.CompletedTask;
             }
             else
             {
-                return action.Invoke(state, CancelToken);
+                return action.Invoke(state, Firewall, CancelToken);
             }
         }
 

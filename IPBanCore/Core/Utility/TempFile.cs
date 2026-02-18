@@ -20,9 +20,18 @@ public sealed class TempFile : IDisposable
         }
     }
 
+    /// <summary>
+    /// Finalizer (calls Dispose)
+    /// </summary>
+    ~TempFile()
+    {
+        Dispose();
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         try
         {
             ExtensionMethods.FileDeleteWithRetry(FullName);
