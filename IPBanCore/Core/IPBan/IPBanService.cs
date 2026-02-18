@@ -399,11 +399,15 @@ namespace DigitalRuby.IPBanCore
 
                 var tempFile = new TempFile();
                 JsonSerializationHelper.SerializeToFile(state, tempFile);
-                state = tempFile;
+                var task = new FirewallTask(action, Firewall, tempFile, typeof(T), name, CancelToken);
 
-#endif
+
+#else
 
                 var task = new FirewallTask(action, Firewall, state, typeof(T), name, CancelToken);
+     
+#endif
+
                 Logger.Debug("Queued firewall task {0}", name);
                 firewallTasks.Enqueue(task);
                 return Task.CompletedTask;
