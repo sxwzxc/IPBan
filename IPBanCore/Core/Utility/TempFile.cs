@@ -28,7 +28,7 @@ public sealed class TempFile : IDisposable
                 tempFolder = "/tmp";
             }
         }
-        TempDirectory = Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location) + "_TempFiles";
+        TempDirectory = Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location) + ".tempfiles";
         TempDirectory = Path.Combine(tempFolder, TempDirectory);
         DeleteTempDirectory();
         Directory.CreateDirectory(TempDirectory);
