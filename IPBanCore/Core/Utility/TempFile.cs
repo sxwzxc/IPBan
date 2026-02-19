@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace DigitalRuby.IPBanCore;
 
@@ -28,8 +29,14 @@ public sealed class TempFile : IDisposable
                 tempFolder = "/tmp";
             }
         }
-        TempDirectory = Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location) + ".tempfiles";
-        TempDirectory = Path.Combine(tempFolder, TempDirectory);
+
+        var exeLoc = System.Reflection.Assembly.GetEntryAssembly()?.Location ?? Guid.NewGuid().ToString("N");
+        
+        // generate sub dir name from exeLoc using hash
+        var hashBytes = MD5.HashData(System.Text.Encoding.UTF8.GetBytes(exeLoc));
+        var hashString = Convert.ToHexString(hashBytes);
+        
+        TempDirectory = Path.Combine(tempFolder, hashString);
         DeleteTempDirectory();
         Directory.CreateDirectory(TempDirectory);
         AppDomain.CurrentDomain.ProcessExit += (s, e) => DeleteTempDirectory();
