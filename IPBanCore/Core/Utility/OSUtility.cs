@@ -177,7 +177,6 @@ namespace DigitalRuby.IPBanCore
             }
         }
 
-        private static readonly string tempFolder;
         private static readonly Lock locker = new();
 
         private static PerformanceCounter windowsCpuCounter;
@@ -198,20 +197,10 @@ namespace DigitalRuby.IPBanCore
         {
             try
             {
-                tempFolder = Path.GetTempPath();
-                if (string.IsNullOrWhiteSpace(tempFolder))
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    {
-                        tempFolder = "c://temp";
-                        processVerb = "runas";
-                    }
-                    else
-                    {
-                        tempFolder = "/tmp";
-                    }
+                    processVerb = "runas";
                 }
-                Directory.CreateDirectory(tempFolder);
                 LoadOSInfo();
             }
             catch (Exception ex)
@@ -936,14 +925,6 @@ namespace DigitalRuby.IPBanCore
         }
 
         /// <summary>
-        /// Generate a new temporary file name using TempFolder, but do not create the file
-        /// </summary>
-        public static string GetTempFileName()
-        {
-            return Path.Combine(tempFolder, Guid.NewGuid().ToString("N") + ".tmp");
-        }
-
-        /// <summary>
         /// Attempt to determine if a file exists. Unlike System.IO.File.Exists, this method will throw an
         /// exception if there is a fatal error attempting to determine if the file exists.
         /// </summary>
@@ -994,11 +975,6 @@ namespace DigitalRuby.IPBanCore
                 //Logger.Error(ex.Exception);
             };
         }
-
-        /// <summary>
-        /// Get the current temp folder
-        /// </summary>
-        public static string TempFolder { get { return tempFolder; } }
 
         /// <summary>
         /// Are we on Windows?

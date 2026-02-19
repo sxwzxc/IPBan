@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace DigitalRuby.IPBanCore;
 
@@ -15,8 +16,20 @@ public sealed class TempFile : IDisposable
 
     static TempFile()
     {
-        TempDirectory = Path.GetFileNameWithoutExtension(System.Reflection.Assembly.GetEntryAssembly().Location) + "_TempFiles";
-        TempDirectory = Path.Combine(OSUtility.TempFolder, TempDirectory);
+        var tempFolder = Path.GetTempPath();
+        if (string.IsNullOrWhiteSpace(tempFolder))
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                tempFolder = @"c:\temp";
+            }
+            else
+            {
+                tempFolder = "/tmp";
+            }
+        }
+        TempDirectory = Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location) + "_TempFiles";
+        TempDirectory = Path.Combine(tempFolder, TempDirectory);
         DeleteTempDirectory();
         Directory.CreateDirectory(TempDirectory);
         AppDomain.CurrentDomain.ProcessExit += (s, e) => DeleteTempDirectory();
@@ -25,14 +38,14 @@ public sealed class TempFile : IDisposable
     /// <summary>
     /// Constructor. Creates the file name but does not create the file itself.
     /// </summary>
-    /// <param name="name">Full path of file name (null to generate one)</param>
+    /// <param name="name">File name without path (null to generate one)</param>
     public TempFile(string name = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            name = Path.Combine(TempDirectory, Path.GetRandomFileName());
+            name = Guid.NewGuid().ToString("N") + ".tmp";
         }
-        FullName = name;
+        FullName = Path.Combine(TempDirectory, name);
     }
 
     /// <summary>
@@ -69,6 +82,15 @@ public sealed class TempFile : IDisposable
     public static implicit operator string(TempFile tempFile)
     {
         return tempFile.FullName;
+    }
+
+    /// <summary>
+    /// Get temp file name with full path. The file is not created, just the name is generated. Caller is responsible for deleting the file when done.
+    /// </summary>
+    /// <returns>Temp file name</returns>
+    public static string GetTempFileName()
+    {
+        return Path.Combine(TempDirectory, Guid.NewGuid().ToString("N") + ".tmp");
     }
 
     /// <summary>
