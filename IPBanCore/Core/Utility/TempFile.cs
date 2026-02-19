@@ -9,15 +9,30 @@ namespace DigitalRuby.IPBanCore;
 public sealed class TempFile : IDisposable
 {
     /// <summary>
+    /// Gets the full path of the temp directory used for storing temporary files.
+    /// </summary>
+    public static string TempDirectory { get; }
+
+    static TempFile()
+    {
+        TempDirectory = Path.GetFileNameWithoutExtension(System.Reflection.Assembly.GetEntryAssembly().Location) + "_TempFiles";
+        TempDirectory = Path.Combine(OSUtility.TempFolder, TempDirectory);
+        DeleteTempDirectory();
+        Directory.CreateDirectory(TempDirectory);
+        AppDomain.CurrentDomain.ProcessExit += (s, e) => DeleteTempDirectory();
+    }
+
+    /// <summary>
     /// Constructor. Creates the file name but does not create the file itself.
     /// </summary>
-    /// <param name="name">File name (null to generate one)</param>
+    /// <param name="name">Full path of file name (null to generate one)</param>
     public TempFile(string name = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            FullName = OSUtility.GetTempFileName();
+            name = Path.Combine(TempDirectory, Path.GetRandomFileName());
         }
+        FullName = name;
     }
 
     /// <summary>
@@ -54,6 +69,23 @@ public sealed class TempFile : IDisposable
     public static implicit operator string(TempFile tempFile)
     {
         return tempFile.FullName;
+    }
+
+    /// <summary>
+    /// Deletes the TempDirectory.
+    /// </summary>
+    private static void DeleteTempDirectory()
+    {
+        if (Directory.Exists(TempDirectory))
+        {
+            try
+            {
+                Directory.Delete(TempDirectory, true);
+            }
+            catch
+            {
+            }
+        }
     }
 
     /// <summary>
