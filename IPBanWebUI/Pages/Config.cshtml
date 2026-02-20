@@ -8,31 +8,171 @@
 <div class="topbar">
     <h1><i class="bi bi-gear me-2"></i>Configuration</h1>
     <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-secondary" onclick="loadConfig()">
+        <button class="btn btn-sm btn-outline-secondary" onclick="reloadActive()">
             <i class="bi bi-arrow-clockwise"></i> Reload
         </button>
-        <button class="btn btn-sm btn-primary" onclick="saveConfig()">
+        <button class="btn btn-sm btn-primary" onclick="saveActive()">
             <i class="bi bi-save"></i> Save
         </button>
     </div>
 </div>
 
-<div class="row g-3">
-    <div class="col-12">
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-3" id="config-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-quick-btn" data-bs-toggle="tab" data-bs-target="#tab-quick" type="button" role="tab">
+            <i class="bi bi-sliders me-1"></i>Quick Settings
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-xml-btn" data-bs-toggle="tab" data-bs-target="#tab-xml" type="button" role="tab">
+            <i class="bi bi-file-code me-1"></i>XML Editor
+        </button>
+    </li>
+</ul>
+
+<div id="config-alert-container"></div>
+
+<div class="tab-content">
+    <!-- Quick Settings tab -->
+    <div class="tab-pane fade show active" id="tab-quick" role="tabpanel">
+        <div class="row g-3">
+            <!-- Ban Rules -->
+            <div class="col-lg-6">
+                <div class="card-panel h-100">
+                    <div class="card-header-panel"><i class="bi bi-shield-exclamation text-danger"></i> Ban Rules</div>
+                    <div class="p-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="qs-FailedLoginAttemptsBeforeBan">Failed Logins Before Ban</label>
+                            <input type="number" class="form-control" id="qs-FailedLoginAttemptsBeforeBan" min="1" placeholder="5">
+                            <div class="form-text">How many failed login attempts trigger a ban.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="qs-BanTime">Ban Duration (DD:HH:MM:SS)</label>
+                            <input type="text" class="form-control font-monospace" id="qs-BanTime" placeholder="01:00:00:00">
+                            <div class="form-text">Use <code>00:00:00:00</code> for permanent ban. Comma-separate multiple durations for escalating bans.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="qs-ExpireTime">Failed Login Expire Time (DD:HH:MM:SS)</label>
+                            <input type="text" class="form-control font-monospace" id="qs-ExpireTime" placeholder="01:00:00:00">
+                            <div class="form-text">Time after last failed attempt before the failure count resets.</div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold" for="qs-FailedLoginAttemptsBeforeBanUserNameWhitelist">Failures Before Ban (Whitelisted Users)</label>
+                            <input type="number" class="form-control" id="qs-FailedLoginAttemptsBeforeBanUserNameWhitelist" min="1" placeholder="20">
+                            <div class="form-text">Failure threshold for user names in the whitelist.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timing & Behavior -->
+            <div class="col-lg-6">
+                <div class="card-panel h-100">
+                    <div class="card-header-panel"><i class="bi bi-clock text-primary"></i> Timing &amp; Behavior</div>
+                    <div class="p-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="qs-CycleTime">Cycle Time (DD:HH:MM:SS)</label>
+                            <input type="text" class="form-control font-monospace" id="qs-CycleTime" placeholder="00:00:00:15">
+                            <div class="form-text">How often IPBan runs housekeeping (banning, unbanning, reloading config).</div>
+                        </div>
+                        <div class="mb-3 pt-1">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="qs-ClearBannedIPAddressesOnRestart">
+                                <label class="form-check-label fw-semibold" for="qs-ClearBannedIPAddressesOnRestart">Clear Bans On Restart</label>
+                            </div>
+                            <div class="form-text">Unban all IPs when the IPBan service restarts.</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="qs-ClearFailedLoginsOnSuccessfulLogin">
+                                <label class="form-check-label fw-semibold" for="qs-ClearFailedLoginsOnSuccessfulLogin">Clear Failures On Successful Login</label>
+                            </div>
+                            <div class="form-text">Reset the failure count when an IP has a successful login.</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="qs-ResetFailedLoginCountForUnbannedIPAddresses">
+                                <label class="form-check-label fw-semibold" for="qs-ResetFailedLoginCountForUnbannedIPAddresses">Reset Count When Unbanned</label>
+                            </div>
+                            <div class="form-text">Reset failure count to 0 when ban expires (for multi-ban-time configs).</div>
+                        </div>
+                        <div class="mb-0">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="qs-ProcessInternalIPAddresses">
+                                <label class="form-check-label fw-semibold" for="qs-ProcessInternalIPAddresses">Process Internal IP Addresses</label>
+                            </div>
+                            <div class="form-text">Also track and ban private/internal IP addresses.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Whitelist -->
+            <div class="col-lg-6">
+                <div class="card-panel h-100">
+                    <div class="card-header-panel"><i class="bi bi-list-check text-success"></i> Whitelist</div>
+                    <div class="p-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="qs-Whitelist">IP Whitelist</label>
+                            <textarea class="form-control font-monospace" id="qs-Whitelist" rows="3" placeholder="Comma-separated IPs, CIDRs, or URLs"></textarea>
+                            <div class="form-text">IPs that are never banned. Supports CIDR ranges and URLs returning newline-delimited IP lists.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="qs-WhitelistRegex">Whitelist Regex</label>
+                            <input type="text" class="form-control font-monospace" id="qs-WhitelistRegex" placeholder="^(192\.168\..*)$">
+                            <div class="form-text">Regular expression for more advanced whitelist matching.</div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold" for="qs-UserNameWhitelist">User Name Whitelist</label>
+                            <input type="text" class="form-control" id="qs-UserNameWhitelist" placeholder="admin,user1">
+                            <div class="form-text">Comma-separated user names that receive the higher failure threshold.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blacklist & Firewall -->
+            <div class="col-lg-6">
+                <div class="card-panel h-100">
+                    <div class="card-header-panel"><i class="bi bi-slash-circle text-danger"></i> Blacklist &amp; Firewall</div>
+                    <div class="p-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="qs-Blacklist">IP Blacklist</label>
+                            <textarea class="form-control font-monospace" id="qs-Blacklist" rows="3" placeholder="Comma-separated IPs, CIDRs, or URLs"></textarea>
+                            <div class="form-text">IPs that are always banned. Whitelist takes precedence over blacklist.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="qs-BlacklistRegex">Blacklist Regex</label>
+                            <input type="text" class="form-control font-monospace" id="qs-BlacklistRegex" placeholder="^(1\.2\.3\..*)$">
+                            <div class="form-text">Regular expression for more advanced blacklist matching.</div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold" for="qs-FirewallRulePrefix">Firewall Rule Prefix</label>
+                            <input type="text" class="form-control font-monospace" id="qs-FirewallRulePrefix" placeholder="IPBan_">
+                            <div class="form-text">Prefix for firewall rule names (A-Z, 0-9, _ only).</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- XML Editor tab -->
+    <div class="tab-pane fade" id="tab-xml" role="tabpanel">
         <div class="card-panel">
             <div class="card-header-panel">
                 <i class="bi bi-file-code"></i> ipban.config
                 <span class="ms-auto text-muted" style="font-size:0.8rem;" id="config-path-label"></span>
             </div>
-            <div class="p-0" id="config-alert-container"></div>
             <div class="p-3">
                 <p class="text-muted small mb-2">
                     <i class="bi bi-info-circle"></i>
-                    Edit the XML configuration below. Changes will be saved to the IPBan config file.
+                    Edit the XML configuration directly. Changes will be saved to the IPBan config file.
                     The IPBan service will pick up the changes on its next cycle.
                 </p>
                 <textarea id="config-editor" class="form-control font-monospace" rows="30"
-                    style="font-size:0.85rem;resize:vertical;" spellcheck="false"
+                    style="font-size:0.83rem;resize:vertical;" spellcheck="false"
                     placeholder="Loading configuration…"></textarea>
             </div>
         </div>
@@ -41,14 +181,72 @@
 
 @section Scripts {
 <script>
-async function loadConfig() {
+// ---- Quick Settings ----
+const QS_BOOL_FIELDS = ['ClearBannedIPAddressesOnRestart','ClearFailedLoginsOnSuccessfulLogin',
+    'ResetFailedLoginCountForUnbannedIPAddresses','ProcessInternalIPAddresses'];
+const QS_TEXT_FIELDS = ['FailedLoginAttemptsBeforeBan','BanTime','ExpireTime','CycleTime',
+    'Whitelist','WhitelistRegex','Blacklist','BlacklistRegex',
+    'FailedLoginAttemptsBeforeBanUserNameWhitelist','UserNameWhitelist','FirewallRulePrefix'];
+
+async function loadQuickSettings() {
+    clearAlert();
+    try {
+        const r = await fetch('/api/config/settings');
+        if (!r.ok) { showAlert('Could not load settings.', 'warning'); return; }
+        const d = await r.json();
+        QS_TEXT_FIELDS.forEach(k => {
+            const el = document.getElementById('qs-' + k);
+            if (el && d[k] !== undefined) el.value = d[k];
+        });
+        QS_BOOL_FIELDS.forEach(k => {
+            const el = document.getElementById('qs-' + k);
+            if (el && d[k] !== undefined) el.checked = (d[k].toLowerCase() === 'true');
+        });
+    } catch(e) {
+        showAlert('Error loading settings: ' + e.message, 'danger');
+    }
+}
+
+async function saveQuickSettings() {
+    const updates = {};
+    QS_TEXT_FIELDS.forEach(k => {
+        const el = document.getElementById('qs-' + k);
+        if (el) updates[k] = el.value;
+    });
+    QS_BOOL_FIELDS.forEach(k => {
+        const el = document.getElementById('qs-' + k);
+        if (el) updates[k] = el.checked ? 'true' : 'false';
+    });
+    clearAlert();
+    try {
+        const r = await fetch('/api/config/settings', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(updates)
+        });
+        const d = await r.json();
+        if (r.ok && d.success) {
+            showToast('Settings saved successfully.', 'success');
+            // If XML editor tab has been opened before, refresh it so it stays in sync
+            if (document.getElementById('config-editor').value && document.getElementById('config-editor').value !== 'Loading…') {
+                loadXmlConfig();
+            }
+        } else {
+            showAlert('Failed to save: ' + (d.message || 'Unknown error'), 'danger');
+        }
+    } catch(e) {
+        showAlert('Error saving settings: ' + e.message, 'danger');
+    }
+}
+
+// ---- XML Editor ----
+async function loadXmlConfig() {
     document.getElementById('config-editor').value = 'Loading…';
     clearAlert();
     try {
         const r = await fetch('/api/config');
         if (r.ok) {
-            const text = await r.text();
-            document.getElementById('config-editor').value = text;
+            document.getElementById('config-editor').value = await r.text();
         } else {
             document.getElementById('config-editor').value = '';
             showAlert('Could not load configuration file. The file may not exist yet or the path is not configured.', 'warning');
@@ -58,7 +256,7 @@ async function loadConfig() {
     }
 }
 
-async function saveConfig() {
+async function saveXmlConfig() {
     const xml = document.getElementById('config-editor').value;
     clearAlert();
     try {
@@ -70,6 +268,7 @@ async function saveConfig() {
         const d = await r.json();
         if (r.ok && d.success) {
             showToast('Configuration saved successfully.', 'success');
+            loadQuickSettings();
         } else {
             showAlert('Failed to save: ' + (d.message || 'Unknown error'), 'danger');
         }
@@ -78,9 +277,20 @@ async function saveConfig() {
     }
 }
 
+// ---- Routing: active tab determines which save/reload to call ----
+function reloadActive() {
+    if (document.getElementById('tab-xml').classList.contains('show')) loadXmlConfig();
+    else loadQuickSettings();
+}
+
+function saveActive() {
+    if (document.getElementById('tab-xml').classList.contains('show')) saveXmlConfig();
+    else saveQuickSettings();
+}
+
 function showAlert(msg, type) {
     document.getElementById('config-alert-container').innerHTML =
-        `<div class="alert alert-${type} alert-dismissible m-3 mb-0" role="alert">
+        `<div class="alert alert-${type} alert-dismissible mb-3" role="alert">
             ${msg}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>`;
@@ -90,6 +300,8 @@ function clearAlert() {
     document.getElementById('config-alert-container').innerHTML = '';
 }
 
-loadConfig();
+document.getElementById('tab-xml-btn').addEventListener('shown.bs.tab', loadXmlConfig);
+
+loadQuickSettings();
 </script>
 }
