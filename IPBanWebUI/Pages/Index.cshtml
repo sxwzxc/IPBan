@@ -1,0 +1,155 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["ActivePage"] = "Index";
+}
+
+<div class="topbar">
+    <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+    <span class="text-muted" style="font-size:0.87rem;" id="last-updated">Loading…</span>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#e8f5e9;color:#388e3c;"><i class="bi bi-database"></i></div>
+            <div>
+                <div class="stat-value text-dark" id="stat-total">—</div>
+                <div class="stat-label">Total IPs Tracked</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fce4ec;color:#c62828;"><i class="bi bi-shield-x"></i></div>
+            <div>
+                <div class="stat-value text-danger" id="stat-banned">—</div>
+                <div class="stat-label">Banned IPs</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fff3e0;color:#e65100;"><i class="bi bi-exclamation-triangle"></i></div>
+            <div>
+                <div class="stat-value text-warning" id="stat-failed">—</div>
+                <div class="stat-label">Failed Login IPs</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card-panel">
+            <div class="card-header-panel">
+                <i class="bi bi-shield-x text-danger"></i> Recently Banned IPs
+                <a href="/Banned" class="ms-auto btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="recent-banned-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Source</th>
+                            <th>Banned At</th>
+                            <th>Ban Expires</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-banned-body">
+                        <tr><td colspan="4" class="text-center text-muted py-3">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card-panel">
+            <div class="card-header-panel">
+                <i class="bi bi-exclamation-triangle text-warning"></i> Recent Failed Login Attempts
+                <a href="/Failed" class="ms-auto btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Source</th>
+                            <th>Failures</th>
+                            <th>Last Attempt</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-failed-body">
+                        <tr><td colspan="4" class="text-center text-muted py-3">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString();
+}
+
+async function loadStats() {
+    try {
+        const r = await fetch('/api/stats');
+        const d = await r.json();
+        document.getElementById('stat-total').textContent = d.totalIPs ?? 0;
+        document.getElementById('stat-banned').textContent = d.bannedIPs ?? 0;
+        document.getElementById('stat-failed').textContent = d.failedLoginIPs ?? 0;
+        document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    } catch(e) {
+        document.getElementById('last-updated').textContent = 'Error loading stats';
+    }
+}
+
+async function loadRecentBanned() {
+    try {
+        const r = await fetch('/api/banned?page=1&pageSize=5');
+        const d = await r.json();
+        const tbody = document.getElementById('recent-banned-body');
+        if (!d.items || d.items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No banned IPs</td></tr>';
+            return;
+        }
+        tbody.innerHTML = d.items.map(ip => `
+            <tr>
+                <td><code>${ip.ipAddress}</code></td>
+                <td>${ip.source || '—'}</td>
+                <td>${formatDate(ip.banStartDate)}</td>
+                <td>${formatDate(ip.banEndDate)}</td>
+            </tr>`).join('');
+    } catch(e) {}
+}
+
+async function loadRecentFailed() {
+    try {
+        const r = await fetch('/api/failed?page=1&pageSize=5');
+        const d = await r.json();
+        const tbody = document.getElementById('recent-failed-body');
+        if (!d.items || d.items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No failed login IPs</td></tr>';
+            return;
+        }
+        tbody.innerHTML = d.items.map(ip => `
+            <tr>
+                <td><code>${ip.ipAddress}</code></td>
+                <td>${ip.source || '—'}</td>
+                <td><span class="badge ${ip.failedLoginCount >= 10 ? 'bg-danger' : ip.failedLoginCount >= 5 ? 'bg-warning text-dark' : 'bg-secondary'}">${ip.failedLoginCount}</span></td>
+                <td>${formatDate(ip.lastFailedLogin)}</td>
+            </tr>`).join('');
+    } catch(e) {}
+}
+
+loadStats();
+loadRecentBanned();
+loadRecentFailed();
+setInterval(loadStats, 30000);
+</script>
+}

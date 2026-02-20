@@ -1,0 +1,117 @@
+@page
+@model FailedModel
+@{
+    ViewData["Title"] = "Failed Logins";
+    ViewData["ActivePage"] = "Failed";
+}
+
+<div class="topbar">
+    <h1><i class="bi bi-exclamation-triangle text-warning me-2"></i>Failed Login Attempts</h1>
+    <button class="btn btn-sm btn-outline-secondary" onclick="loadTable(currentPage)">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+</div>
+
+<div class="card-panel mb-3">
+    <div class="card-header-panel">
+        <i class="bi bi-funnel"></i> Search &amp; Filter
+    </div>
+    <div class="p-3 d-flex gap-2 flex-wrap">
+        <input type="text" id="search-input" class="form-control" style="max-width:280px;" placeholder="Filter by IP address…" oninput="onSearch()">
+        <span class="ms-auto text-muted align-self-center" id="total-count" style="font-size:0.87rem;"></span>
+    </div>
+</div>
+
+<div class="card-panel">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>IP Address</th>
+                    <th>User Name</th>
+                    <th>Source</th>
+                    <th>Failed Logins</th>
+                    <th>Last Attempt</th>
+                </tr>
+            </thead>
+            <tbody id="failed-tbody">
+                <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top" id="pagination-bar">
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const PAGE_SIZE = 25;
+let currentPage = 1;
+let filterText = '';
+let debounceTimer;
+
+function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString();
+}
+
+async function loadTable(page) {
+    currentPage = page;
+    document.getElementById('failed-tbody').innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>';
+    try {
+        const r = await fetch(`/api/failed?page=${page}&pageSize=${PAGE_SIZE}`);
+        const d = await r.json();
+        document.getElementById('total-count').textContent = `${d.total} IP${d.total !== 1 ? 's' : ''}`;
+
+        let items = d.items || [];
+        if (filterText) {
+            items = items.filter(ip => ip.ipAddress?.includes(filterText));
+        }
+
+        const tbody = document.getElementById('failed-tbody');
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No failed login records found.</td></tr>';
+        } else {
+            tbody.innerHTML = items.map(ip => `
+                <tr>
+                    <td><code>${ip.ipAddress}</code></td>
+                    <td>${ip.userName || '—'}</td>
+                    <td>${ip.source || '—'}</td>
+                    <td>
+                        <span class="badge ${ip.failedLoginCount >= 10 ? 'bg-danger' : ip.failedLoginCount >= 5 ? 'bg-warning text-dark' : 'bg-secondary'}">
+                            ${ip.failedLoginCount}
+                        </span>
+                    </td>
+                    <td>${formatDate(ip.lastFailedLogin)}</td>
+                </tr>`).join('');
+        }
+        renderPagination(d.total, page, PAGE_SIZE);
+    } catch(e) {
+        document.getElementById('failed-tbody').innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Error loading data.</td></tr>';
+    }
+}
+
+function renderPagination(total, page, pageSize) {
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const bar = document.getElementById('pagination-bar');
+    let html = `<span class="text-muted" style="font-size:0.85rem;">Page ${page} of ${totalPages}</span><nav><ul class="pagination pagination-sm mb-0">`;
+    html += `<li class="page-item ${page<=1?'disabled':''}"><a class="page-link" href="#" onclick="loadTable(${page-1});return false;">‹</a></li>`;
+    for (let p = Math.max(1,page-2); p <= Math.min(totalPages,page+2); p++) {
+        html += `<li class="page-item ${p===page?'active':''}"><a class="page-link" href="#" onclick="loadTable(${p});return false;">${p}</a></li>`;
+    }
+    html += `<li class="page-item ${page>=totalPages?'disabled':''}"><a class="page-link" href="#" onclick="loadTable(${page+1});return false;">›</a></li>`;
+    html += '</ul></nav>';
+    bar.innerHTML = html;
+}
+
+function onSearch() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        filterText = document.getElementById('search-input').value.trim();
+        loadTable(1);
+    }, 300);
+}
+
+loadTable(1);
+</script>
+}

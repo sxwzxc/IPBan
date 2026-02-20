@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DigitalRuby.IPBanWebUI</RootNamespace>
+    <AssemblyName>DigitalRuby.IPBanWebUI</AssemblyName>
+    <Description>IPBan Web UI dashboard for monitoring and managing IP bans.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IPBanCore\IPBanCore.csproj" />
+  </ItemGroup>
+
+</Project>
