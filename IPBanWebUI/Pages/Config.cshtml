@@ -1,0 +1,95 @@
+@page
+@model ConfigModel
+@{
+    ViewData["Title"] = "Configuration";
+    ViewData["ActivePage"] = "Config";
+}
+
+<div class="topbar">
+    <h1><i class="bi bi-gear me-2"></i>Configuration</h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="loadConfig()">
+            <i class="bi bi-arrow-clockwise"></i> Reload
+        </button>
+        <button class="btn btn-sm btn-primary" onclick="saveConfig()">
+            <i class="bi bi-save"></i> Save
+        </button>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12">
+        <div class="card-panel">
+            <div class="card-header-panel">
+                <i class="bi bi-file-code"></i> ipban.config
+                <span class="ms-auto text-muted" style="font-size:0.8rem;" id="config-path-label"></span>
+            </div>
+            <div class="p-0" id="config-alert-container"></div>
+            <div class="p-3">
+                <p class="text-muted small mb-2">
+                    <i class="bi bi-info-circle"></i>
+                    Edit the XML configuration below. Changes will be saved to the IPBan config file.
+                    The IPBan service will pick up the changes on its next cycle.
+                </p>
+                <textarea id="config-editor" class="form-control font-monospace" rows="30"
+                    style="font-size:0.85rem;resize:vertical;" spellcheck="false"
+                    placeholder="Loading configuration…"></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+async function loadConfig() {
+    document.getElementById('config-editor').value = 'Loading…';
+    clearAlert();
+    try {
+        const r = await fetch('/api/config');
+        if (r.ok) {
+            const text = await r.text();
+            document.getElementById('config-editor').value = text;
+        } else {
+            document.getElementById('config-editor').value = '';
+            showAlert('Could not load configuration file. The file may not exist yet or the path is not configured.', 'warning');
+        }
+    } catch(e) {
+        showAlert('Error loading configuration: ' + e.message, 'danger');
+    }
+}
+
+async function saveConfig() {
+    const xml = document.getElementById('config-editor').value;
+    clearAlert();
+    try {
+        const r = await fetch('/api/config', {
+            method: 'POST',
+            headers: {'Content-Type':'text/plain'},
+            body: xml
+        });
+        const d = await r.json();
+        if (r.ok && d.success) {
+            showToast('Configuration saved successfully.', 'success');
+        } else {
+            showAlert('Failed to save: ' + (d.message || 'Unknown error'), 'danger');
+        }
+    } catch(e) {
+        showAlert('Error saving configuration: ' + e.message, 'danger');
+    }
+}
+
+function showAlert(msg, type) {
+    document.getElementById('config-alert-container').innerHTML =
+        `<div class="alert alert-${type} alert-dismissible m-3 mb-0" role="alert">
+            ${msg}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
+}
+
+function clearAlert() {
+    document.getElementById('config-alert-container').innerHTML = '';
+}
+
+loadConfig();
+</script>
+}

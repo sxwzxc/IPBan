@@ -1,0 +1,175 @@
+@page
+@model BannedModel
+@{
+    ViewData["Title"] = "Banned IPs";
+    ViewData["ActivePage"] = "Banned";
+}
+
+<div class="topbar">
+    <h1><i class="bi bi-shield-x text-danger me-2"></i>Banned IPs</h1>
+    <button class="btn btn-sm btn-outline-secondary" onclick="loadTable(currentPage)">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+</div>
+
+<div class="card-panel mb-3">
+    <div class="card-header-panel">
+        <i class="bi bi-funnel"></i> Search &amp; Filter
+    </div>
+    <div class="p-3 d-flex gap-2 flex-wrap">
+        <input type="text" id="search-input" class="form-control" style="max-width:280px;" placeholder="Filter by IP address…" oninput="onSearch()">
+        <span class="ms-auto text-muted align-self-center" id="total-count" style="font-size:0.87rem;"></span>
+    </div>
+</div>
+
+<div class="card-panel">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>IP Address</th>
+                    <th>User Name</th>
+                    <th>Source</th>
+                    <th>Failed Logins</th>
+                    <th>Banned At</th>
+                    <th>Ban Expires</th>
+                    <th>State</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="banned-tbody">
+                <tr><td colspan="8" class="text-center text-muted py-4">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top" id="pagination-bar">
+    </div>
+</div>
+
+<!-- Unban confirmation modal -->
+<div class="modal fade" id="unbanModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-shield-check text-success me-2"></i>Confirm Unban</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Remove <strong id="unban-ip-display"></strong> from the ban list?
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-success" id="unban-confirm-btn">Unban</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const PAGE_SIZE = 25;
+let currentPage = 1;
+let totalItems = 0;
+let filterText = '';
+let pendingUnbanIP = '';
+let debounceTimer;
+
+const stateNames = {0:'Active',1:'Pending Add',2:'Pending Remove',3:'Failed Login',4:'Remove→Failed'};
+const stateBadge = {0:'bg-success',1:'bg-warning text-dark',2:'bg-danger',3:'bg-secondary',4:'bg-info text-dark'};
+
+function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString();
+}
+
+async function loadTable(page) {
+    currentPage = page;
+    document.getElementById('banned-tbody').innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Loading…</td></tr>';
+    try {
+        const r = await fetch(`/api/banned?page=${page}&pageSize=${PAGE_SIZE}`);
+        const d = await r.json();
+        totalItems = d.total;
+        document.getElementById('total-count').textContent = `${totalItems} banned IP${totalItems !== 1 ? 's' : ''}`;
+
+        let items = d.items || [];
+        if (filterText) {
+            items = items.filter(ip => ip.ipAddress?.includes(filterText));
+        }
+
+        const tbody = document.getElementById('banned-tbody');
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No banned IP addresses found.</td></tr>';
+        } else {
+            tbody.innerHTML = items.map(ip => `
+                <tr>
+                    <td><code>${ip.ipAddress}</code></td>
+                    <td>${ip.userName || '—'}</td>
+                    <td>${ip.source || '—'}</td>
+                    <td><span class="badge bg-warning text-dark">${ip.failedLoginCount}</span></td>
+                    <td>${formatDate(ip.banStartDate)}</td>
+                    <td>${formatDate(ip.banEndDate)}</td>
+                    <td><span class="badge ${stateBadge[ip.state] || 'bg-secondary'}">${stateNames[ip.state] ?? ip.state}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-success" onclick="confirmUnban('${ip.ipAddress}')">
+                            <i class="bi bi-shield-check"></i> Unban
+                        </button>
+                    </td>
+                </tr>`).join('');
+        }
+        renderPagination(d.total, page, PAGE_SIZE);
+    } catch(e) {
+        document.getElementById('banned-tbody').innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">Error loading data.</td></tr>';
+    }
+}
+
+function renderPagination(total, page, pageSize) {
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const bar = document.getElementById('pagination-bar');
+    let html = `<span class="text-muted" style="font-size:0.85rem;">Page ${page} of ${totalPages}</span><nav><ul class="pagination pagination-sm mb-0">`;
+    html += `<li class="page-item ${page<=1?'disabled':''}"><a class="page-link" href="#" onclick="loadTable(${page-1});return false;">‹</a></li>`;
+    for (let p = Math.max(1,page-2); p <= Math.min(totalPages,page+2); p++) {
+        html += `<li class="page-item ${p===page?'active':''}"><a class="page-link" href="#" onclick="loadTable(${p});return false;">${p}</a></li>`;
+    }
+    html += `<li class="page-item ${page>=totalPages?'disabled':''}"><a class="page-link" href="#" onclick="loadTable(${page+1});return false;">›</a></li>`;
+    html += '</ul></nav>';
+    bar.innerHTML = html;
+}
+
+function onSearch() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        filterText = document.getElementById('search-input').value.trim();
+        loadTable(1);
+    }, 300);
+}
+
+function confirmUnban(ip) {
+    pendingUnbanIP = ip;
+    document.getElementById('unban-ip-display').textContent = ip;
+    new bootstrap.Modal(document.getElementById('unbanModal')).show();
+}
+
+document.getElementById('unban-confirm-btn').addEventListener('click', async () => {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('unbanModal'));
+    modal.hide();
+    try {
+        const r = await fetch('/api/unban', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ipAddress: pendingUnbanIP})
+        });
+        if (r.ok) {
+            showToast(`Successfully unbanned ${pendingUnbanIP}`, 'success');
+            loadTable(currentPage);
+        } else {
+            const err = await r.json();
+            showToast(err.message || 'Failed to unban.', 'danger');
+        }
+    } catch(e) {
+        showToast('Error: ' + e.message, 'danger');
+    }
+});
+
+loadTable(1);
+</script>
+}
