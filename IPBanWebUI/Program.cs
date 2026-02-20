@@ -84,4 +84,106 @@ app.MapPost("/api/config", async (HttpContext context, IPBanWebSettings settings
     }
 });
 
+// Quick settings keys exposed in the structured settings UI
+string[] QuickSettingsKeys =
+[
+    "FailedLoginAttemptsBeforeBan",
+    "BanTime",
+    "ExpireTime",
+    "CycleTime",
+    "ResetFailedLoginCountForUnbannedIPAddresses",
+    "ClearBannedIPAddressesOnRestart",
+    "ClearFailedLoginsOnSuccessfulLogin",
+    "ProcessInternalIPAddresses",
+    "Whitelist",
+    "WhitelistRegex",
+    "Blacklist",
+    "BlacklistRegex",
+    "FailedLoginAttemptsBeforeBanUserNameWhitelist",
+    "UserNameWhitelist",
+    "FirewallRulePrefix"
+];
+
+app.MapGet("/api/config/settings", (IPBanWebSettings settings) =>
+{
+    try
+    {
+        if (!File.Exists(settings.ConfigPath))
+            return Results.Ok(new Dictionary<string, string>());
+
+        var doc = new System.Xml.XmlDocument();
+        doc.Load(settings.ConfigPath);
+        var appSettings = doc.SelectSingleNode("//appSettings");
+        var result = new Dictionary<string, string>();
+        if (appSettings != null)
+        {
+            foreach (var key in QuickSettingsKeys)
+            {
+                // Find by iterating child nodes to avoid XPath string interpolation
+                foreach (System.Xml.XmlNode child in appSettings.ChildNodes)
+                {
+                    if (child.Attributes?["key"]?.Value == key &&
+                        child.Attributes?["value"] is { } attr)
+                    {
+                        result[key] = attr.Value;
+                        break;
+                    }
+                }
+            }
+        }
+        return Results.Json(result);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
+});
+
+app.MapPost("/api/config/settings", async (HttpContext context, IPBanWebSettings settings) =>
+{
+    try
+    {
+        using var reader = new StreamReader(context.Request.Body);
+        string body = await reader.ReadToEndAsync();
+        var updates = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(body,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        if (updates == null || updates.Count == 0)
+            return Results.BadRequest(new { success = false, message = "No settings provided." });
+
+        if (!File.Exists(settings.ConfigPath))
+            return Results.NotFound(new { success = false, message = "Config file not found." });
+
+        var doc = new System.Xml.XmlDocument();
+        doc.Load(settings.ConfigPath);
+        var appSettings = doc.SelectSingleNode("//appSettings");
+
+        foreach (var kvp in updates)
+        {
+            // Only allow updating known quick-settings keys for safety
+            if (!QuickSettingsKeys.Contains(kvp.Key)) continue;
+            // Find by iterating child nodes to avoid XPath string interpolation
+            if (appSettings != null)
+            {
+                foreach (System.Xml.XmlNode child in appSettings.ChildNodes)
+                {
+                    if (child.Attributes?["key"]?.Value == kvp.Key &&
+                        child.Attributes?["value"] is { } attr)
+                    {
+                        attr.Value = kvp.Value ?? string.Empty;
+                        break;
+                    }
+                }
+            }
+        }
+
+        doc.Save(settings.ConfigPath);
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, message = ex.Message });
+    }
+});
+
 app.Run();

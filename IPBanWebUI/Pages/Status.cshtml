@@ -1,0 +1,253 @@
+@page
+@model StatusModel
+@{
+    ViewData["Title"] = "Real-Time Status";
+    ViewData["ActivePage"] = "Status";
+}
+
+<div class="topbar">
+    <h1><i class="bi bi-activity text-success me-2"></i>Real-Time Status</h1>
+    <div class="d-flex align-items-center gap-3">
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="auto-refresh-toggle" checked>
+            <label class="form-check-label text-muted" for="auto-refresh-toggle" style="font-size:0.87rem;">Auto-Refresh</label>
+        </div>
+        <span class="text-muted" style="font-size:0.87rem;" id="last-updated">Loading…</span>
+        <button class="btn btn-sm btn-outline-secondary" onclick="refresh()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Stats row -->
+<div class="row g-3 mb-4" id="stats-row">
+    <div class="col-sm-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#e8f5e9;color:#388e3c;"><i class="bi bi-database"></i></div>
+            <div>
+                <div class="stat-value text-dark" id="stat-total">—</div>
+                <div class="stat-label">Total Tracked</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fce4ec;color:#c62828;"><i class="bi bi-shield-x"></i></div>
+            <div>
+                <div class="stat-value text-danger" id="stat-banned">—</div>
+                <div class="stat-label">Banned</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fff3e0;color:#e65100;"><i class="bi bi-exclamation-triangle"></i></div>
+            <div>
+                <div class="stat-value text-warning" id="stat-failed">—</div>
+                <div class="stat-label">Attempting</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#e3f2fd;color:#1565c0;"><i class="bi bi-clock-history"></i></div>
+            <div>
+                <div class="stat-value text-primary" id="stat-threshold">—</div>
+                <div class="stat-label">Ban Threshold</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active attempts table -->
+<div class="card-panel mb-3">
+    <div class="card-header-panel">
+        <i class="bi bi-exclamation-triangle text-warning"></i>
+        Active Failed Login Attempts
+        <span class="badge bg-warning text-dark ms-2" id="active-count">0</span>
+        <span class="ms-auto text-muted" style="font-size:0.8rem;">Sorted by most failures · <span id="refresh-countdown">—</span></span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>IP Address</th>
+                    <th>User Name</th>
+                    <th>Source</th>
+                    <th style="min-width:200px;">Failures / Threshold</th>
+                    <th>Last Attempt</th>
+                </tr>
+            </thead>
+            <tbody id="active-tbody">
+                <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Recent bans -->
+<div class="card-panel">
+    <div class="card-header-panel">
+        <i class="bi bi-shield-x text-danger"></i>
+        Recently Banned IPs
+        <a href="/Banned" class="ms-auto btn btn-sm btn-outline-secondary">View All</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>IP Address</th>
+                    <th>Source</th>
+                    <th>Failed Logins</th>
+                    <th>Banned At</th>
+                    <th>Ban Expires</th>
+                </tr>
+            </thead>
+            <tbody id="banned-tbody">
+                <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let banThreshold = 5;
+let autoRefreshEnabled = true;
+let countdownValue = 10;
+let countdownTimer;
+
+function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString();
+}
+
+function formatRelative(iso) {
+    if (!iso) return '—';
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    return `${Math.floor(diff/3600)}h ago`;
+}
+
+async function loadSettings() {
+    try {
+        const r = await fetch('/api/config/settings');
+        if (r.ok) {
+            const d = await r.json();
+            const val = parseInt(d['FailedLoginAttemptsBeforeBan']);
+            if (!isNaN(val) && val > 0) banThreshold = val;
+        }
+    } catch(e) {}
+    document.getElementById('stat-threshold').textContent = banThreshold;
+}
+
+async function loadStats() {
+    try {
+        const r = await fetch('/api/stats');
+        const d = await r.json();
+        document.getElementById('stat-total').textContent = d.totalIPs ?? 0;
+        document.getElementById('stat-banned').textContent = d.bannedIPs ?? 0;
+        document.getElementById('stat-failed').textContent = d.failedLoginIPs ?? 0;
+    } catch(e) {}
+}
+
+async function loadActiveAttempts() {
+    try {
+        const r = await fetch('/api/failed?page=1&pageSize=100');
+        const d = await r.json();
+        const items = (d.items || []).sort((a, b) => (b.failedLoginCount || 0) - (a.failedLoginCount || 0));
+        document.getElementById('active-count').textContent = items.length;
+
+        const tbody = document.getElementById('active-tbody');
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No active failed login attempts.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map(ip => {
+            const pct = Math.min(100, Math.round((ip.failedLoginCount / banThreshold) * 100));
+            const barColor = pct >= 100 ? 'bg-danger' : pct >= 70 ? 'bg-warning' : 'bg-info';
+            const textColor = pct >= 100 ? 'text-danger fw-bold' : pct >= 70 ? 'text-warning' : '';
+            return `<tr>
+                <td><code>${ip.ipAddress}</code></td>
+                <td>${ip.userName || '—'}</td>
+                <td>${ip.source || '—'}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="flex-grow-1" style="min-width:120px;">
+                            <div class="progress" style="height:8px;">
+                                <div class="progress-bar ${barColor}" style="width:${pct}%;"></div>
+                            </div>
+                        </div>
+                        <span class="small ${textColor}" style="white-space:nowrap;">${ip.failedLoginCount} / ${banThreshold}</span>
+                    </div>
+                </td>
+                <td class="text-muted small">${formatRelative(ip.lastFailedLogin)}</td>
+            </tr>`;
+        }).join('');
+    } catch(e) {
+        document.getElementById('active-tbody').innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Error loading data.</td></tr>';
+    }
+}
+
+async function loadRecentBanned() {
+    try {
+        const r = await fetch('/api/banned?page=1&pageSize=10');
+        const d = await r.json();
+        const items = d.items || [];
+        const tbody = document.getElementById('banned-tbody');
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No banned IPs.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map(ip => `
+            <tr>
+                <td><code>${ip.ipAddress}</code></td>
+                <td>${ip.source || '—'}</td>
+                <td><span class="badge bg-danger">${ip.failedLoginCount}</span></td>
+                <td class="text-muted small">${formatDate(ip.banStartDate)}</td>
+                <td class="text-muted small">${formatDate(ip.banEndDate)}</td>
+            </tr>`).join('');
+    } catch(e) {}
+}
+
+async function refresh() {
+    document.getElementById('last-updated').textContent = 'Refreshing…';
+    await Promise.all([loadStats(), loadActiveAttempts(), loadRecentBanned()]);
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    resetCountdown();
+}
+
+function resetCountdown() {
+    countdownValue = 10;
+    updateCountdownLabel();
+}
+
+function updateCountdownLabel() {
+    document.getElementById('refresh-countdown').textContent =
+        autoRefreshEnabled ? `auto-refresh in ${countdownValue}s` : 'auto-refresh off';
+}
+
+function startCountdownTick() {
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(() => {
+        if (!autoRefreshEnabled) return;
+        countdownValue--;
+        updateCountdownLabel();
+        if (countdownValue <= 0) {
+            refresh();
+        }
+    }, 1000);
+}
+
+document.getElementById('auto-refresh-toggle').addEventListener('change', function() {
+    autoRefreshEnabled = this.checked;
+    updateCountdownLabel();
+    if (autoRefreshEnabled) resetCountdown();
+});
+
+// Initial load
+loadSettings().then(() => refresh());
+startCountdownTick();
+</script>
+}
