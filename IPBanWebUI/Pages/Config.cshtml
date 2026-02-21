@@ -5,43 +5,116 @@
     ViewData["ActivePage"] = "Config";
 }
 
-<div class="topbar">
-    <h1><i class="bi bi-gear me-2"></i>Configuration</h1>
-    <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-secondary" onclick="reloadActive()">
-            <i class="bi bi-arrow-clockwise"></i> Reload
-        </button>
-        <button class="btn btn-sm btn-primary" onclick="saveActive()">
-            <i class="bi bi-save"></i> Save
-        </button>
+<style>
+    #config-page { max-width: 1280px; margin: 0 auto; }
+    #config-page .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    #config-page .col-lg-6 { min-width: 0; }
+    #config-page .config-btn {
+        border-radius: 0.55rem;
+        padding: 0.35rem 0.75rem;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #1e293b;
+        font-weight: 600;
+        font-size: 0.82rem;
+    }
+    #config-page .config-btn.btn-primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+    #config-page .config-btn.btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    #config-page .card-panel { overflow: hidden; }
+    #config-tabs { border-bottom-color: #dbe5f0; gap: 0.35rem; }
+    #config-tabs.nav-tabs {
+        list-style: none;
+        margin: 0 0 1rem 0;
+        padding: 0;
+        display: flex;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+    #config-tabs .nav-item { list-style: none; }
+    #config-tabs .nav-link {
+        border: 1px solid transparent;
+        border-radius: 0.65rem 0.65rem 0 0;
+        color: #475569;
+        font-weight: 600;
+        padding: 0.55rem 0.9rem;
+        background: transparent;
+        cursor: pointer;
+    }
+    #config-tabs .nav-link:hover { background: #f8fafc; border-color: #e2e8f0; color: #1e293b; }
+    #config-tabs .nav-link.active {
+        background: #fff;
+        border-color: #dbe5f0 #dbe5f0 #fff;
+        color: #0f172a;
+        box-shadow: 0 -1px 0 #dbe5f0 inset;
+    }
+    #tab-quick .card-header-panel { padding: 0.95rem 1.25rem; background: #f8fafc; }
+    #tab-quick .config-card-body { padding: 1.15rem 1.25rem; }
+    #tab-quick .form-label { font-size: 0.83rem; color: #334155; margin-bottom: 0.35rem; }
+    #tab-quick .form-control {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.55rem;
+        padding: 0.42rem 0.65rem;
+        background: #fff;
+        color: #0f172a;
+    }
+    #tab-quick textarea.form-control { min-height: 84px; }
+    #tab-quick .form-text { font-size: 0.75rem; line-height: 1.45; margin-top: 0.35rem; }
+    #tab-quick .form-check.form-switch {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.65rem;
+        padding: 0.7rem 0.85rem 0.7rem 2.8rem;
+    }
+    #tab-quick .form-check .form-check-input { margin-top: 0.15rem; }
+    #tab-quick .form-check .form-check-label { color: #1e293b; }
+    #tab-xml .form-control {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.55rem;
+        padding: 0.55rem 0.7rem;
+        background: #fff;
+    }
+</style>
+
+<div id="config-page">
+    <div class="topbar">
+        <h1><i class="bi bi-gear me-2"></i>Configuration</h1>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary config-btn" onclick="reloadActive()">
+                <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+            <button class="btn btn-sm btn-primary config-btn" onclick="saveActive()">
+                <i class="bi bi-save"></i> Save
+            </button>
+        </div>
     </div>
-</div>
 
-<!-- Tabs -->
-<ul class="nav nav-tabs mb-3" id="config-tabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="tab-quick-btn" data-bs-toggle="tab" data-bs-target="#tab-quick" type="button" role="tab">
-            <i class="bi bi-sliders me-1"></i>Quick Settings
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-xml-btn" data-bs-toggle="tab" data-bs-target="#tab-xml" type="button" role="tab">
-            <i class="bi bi-file-code me-1"></i>XML Editor
-        </button>
-    </li>
-</ul>
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3" id="config-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-quick-btn" data-bs-toggle="tab" data-bs-target="#tab-quick" type="button" role="tab">
+                <i class="bi bi-sliders me-1"></i>Quick Settings
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-xml-btn" data-bs-toggle="tab" data-bs-target="#tab-xml" type="button" role="tab">
+                <i class="bi bi-file-code me-1"></i>XML Editor
+            </button>
+        </li>
+    </ul>
 
-<div id="config-alert-container"></div>
+    <div id="config-alert-container"></div>
 
-<div class="tab-content">
+    <div class="tab-content">
     <!-- Quick Settings tab -->
     <div class="tab-pane fade show active" id="tab-quick" role="tabpanel">
-        <div class="row g-3">
+        <div class="config-grid">
             <!-- Ban Rules -->
             <div class="col-lg-6">
                 <div class="card-panel h-100">
                     <div class="card-header-panel"><i class="bi bi-shield-exclamation text-danger"></i> Ban Rules</div>
-                    <div class="p-3">
+                    <div class="p-3 config-card-body">
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="qs-FailedLoginAttemptsBeforeBan">Failed Logins Before Ban</label>
                             <input type="number" class="form-control" id="qs-FailedLoginAttemptsBeforeBan" min="1" placeholder="5">
@@ -70,7 +143,7 @@
             <div class="col-lg-6">
                 <div class="card-panel h-100">
                     <div class="card-header-panel"><i class="bi bi-clock text-primary"></i> Timing &amp; Behavior</div>
-                    <div class="p-3">
+                    <div class="p-3 config-card-body">
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="qs-CycleTime">Cycle Time (DD:HH:MM:SS)</label>
                             <input type="text" class="form-control font-monospace" id="qs-CycleTime" placeholder="00:00:00:15">
@@ -112,7 +185,7 @@
             <div class="col-lg-6">
                 <div class="card-panel h-100">
                     <div class="card-header-panel"><i class="bi bi-list-check text-success"></i> Whitelist</div>
-                    <div class="p-3">
+                    <div class="p-3 config-card-body">
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="qs-Whitelist">IP Whitelist</label>
                             <textarea class="form-control font-monospace" id="qs-Whitelist" rows="3" placeholder="Comma-separated IPs, CIDRs, or URLs"></textarea>
@@ -136,7 +209,7 @@
             <div class="col-lg-6">
                 <div class="card-panel h-100">
                     <div class="card-header-panel"><i class="bi bi-slash-circle text-danger"></i> Blacklist &amp; Firewall</div>
-                    <div class="p-3">
+                    <div class="p-3 config-card-body">
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="qs-Blacklist">IP Blacklist</label>
                             <textarea class="form-control font-monospace" id="qs-Blacklist" rows="3" placeholder="Comma-separated IPs, CIDRs, or URLs"></textarea>
@@ -177,6 +250,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 
 @section Scripts {
